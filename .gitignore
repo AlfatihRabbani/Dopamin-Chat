@@ -1,0 +1,41 @@
+# Virtualenvs (recreated by launcher)
+.venv/
+.venv-applio/
+
+# Applio repo (cloned by launcher on first voice-feature use)
+Applio_src/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# User data
+history/
+generated_images/
+creations/
+notes/
+user_pfp/
+settings.json
+tools_log.jsonl
+logs/
+
+# Model weights — too large for git, user-provided
+models/*
+!models/README.md
+ImageGen_Models/*
+!ImageGen_Models/README.md
+ImageGen_LoRAs/*
+!ImageGen_LoRAs/README.md
+voices/piper/*
+!voices/piper/README.md
+voices/rvc/*
+!voices/rvc/README.md
+Applio/*
+!Applio/README.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

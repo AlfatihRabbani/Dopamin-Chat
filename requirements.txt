@@ -1,0 +1,34 @@
+# Runtime deps for Dopamine Chat.
+# torch is installed separately by install.sh / install.bat with the right
+# CUDA/ROCm wheel. llama-cpp-python is installed last as best-effort.
+
+numpy>=1.26
+transformers>=4.45.0
+accelerate>=0.30.0
+bitsandbytes>=0.43.0
+peft>=0.11.0
+safetensors>=0.4.0
+rich>=13.0.0
+pillow>=10.0.0
+psutil>=5.9.0
+flask>=3.0.0
+diffusers>=0.30.0
+huggingface_hub>=0.24.0
+sentencepiece>=0.2.0
+einops>=0.7.0
+# Document attachments (docx/pdf/xlsx text extraction)
+python-docx>=1.1.0
+pypdf>=4.0.0
+openpyxl>=3.1.0
+
+# GGUF backend — installer handles this separately with prebuilt wheels.
+# Listed here only so users can install manually with: pip install -r requirements.txt
+llama-cpp-python>=0.2.79
+
+# --- Optional voice stack (install on demand) -------------------------------
+# Text-to-speech:
+#   pip install piper-tts
+#   # then drop voice models (.onnx + .onnx.json) into voices/piper/
+# RVC voice conversion (Applio-compatible .pth + .index):
+#   pip install rvc-python fairseq faiss-cpu praat-parselmouth pyworld torchcrepe
+#   # then drop .pth + .index into voices/rvc/<character>/ (or use applio/ folder)
