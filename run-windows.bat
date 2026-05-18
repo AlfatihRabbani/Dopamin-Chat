@@ -39,12 +39,6 @@ if errorlevel 1 (
 )
 call ".venv\Scripts\activate.bat"
 
-python -c "import rich, torch, transformers, flask, diffusers" 2>nul
-if errorlevel 1 (
-    echo [run-windows] Core deps missing - re-running main install
-    call :install_main
-)
-
 REM ---------- voice venv (best effort, never blocks chat) ----------
 call :need_voice
 if errorlevel 1 (
@@ -63,14 +57,14 @@ exit /b 0
 REM ==========================================================================
 :need_main
 if not exist ".venv\Scripts\activate.bat" exit /b 1
+if not exist ".venv\.dopamine_installed" exit /b 1
 exit /b 0
 
 REM ==========================================================================
 :need_voice
 if not exist ".venv-applio\Scripts\activate.bat" exit /b 1
 if not exist "Applio_src\core.py" exit /b 1
-".venv-applio\Scripts\python.exe" -c "import sys, os; sys.path.insert(0, os.path.abspath('Applio_src')); os.chdir('Applio_src'); from core import run_infer_script; import piper" >nul 2>&1
-if errorlevel 1 exit /b 1
+if not exist ".venv-applio\.dopamine_voice_installed" exit /b 1
 exit /b 0
 
 REM ==========================================================================
@@ -188,6 +182,7 @@ if "!LLAMA_OK!"=="0" (
 )
 
 echo [run-windows] Main install complete. GPU: %GPU_KIND%  llama-cpp-python: !LLAMA_OK!
+> ".venv\.dopamine_installed" echo ok
 exit /b 0
 
 REM ==========================================================================
@@ -234,4 +229,5 @@ if errorlevel 1 echo [run-windows] [voice] WARNING: prerequisites download faile
 popd
 
 echo [run-windows] [voice] Voice install complete.
+> ".venv-applio\.dopamine_voice_installed" echo ok
 exit /b 0

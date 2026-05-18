@@ -44,7 +44,9 @@ import datetime
 import subprocess
 import urllib.request
 import urllib.error
+import urllib.parse
 from pathlib import Path
+from html import unescape
 
 # ---------------------------------------------------------------------------
 # OS detection
@@ -661,6 +663,83 @@ def web_fetch(url: str, max_chars: int = MAX_OUTPUT_CHARS):
     }
 
 
+# DuckDuckGo HTML result row. Each <a class="result__a"> is a hit;
+# href contains a /l/?uddg=<encoded real url> redirect; snippet is in the
+# adjacent <a class="result__snippet"> or <div class="result__snippet">.
+_DDG_RESULT_RE = re.compile(
+    r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>'
+    r'(?:.*?class="result__snippet"[^>]*>(.*?)</a>'
+    r'|.*?class="result__snippet"[^>]*>(.*?)</div>)?',
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _ddg_unwrap(href: str) -> str:
+    """DuckDuckGo wraps result URLs as /l/?uddg=<percent-encoded real url>."""
+    try:
+        if href.startswith("//"):
+            href = "https:" + href
+        parsed = urllib.parse.urlparse(href)
+        qs = urllib.parse.parse_qs(parsed.query)
+        real = qs.get("uddg", [None])[0]
+        if real:
+            return urllib.parse.unquote(real)
+    except Exception:
+        pass
+    return href
+
+
+def web_search(query: str, limit: int = 5):
+    """Search the web. Returns a list of {title, url, snippet}.
+
+    Uses DuckDuckGo's HTML endpoint — no API key. The bot should follow up
+    with web_fetch(url) on a result to read the page contents.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"error": "empty query"}
+    try:
+        limit = max(1, min(int(limit), 20))
+    except Exception:
+        limit = 5
+    url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(q)
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; dopamine-chat/1.0)",
+            "Accept": "text/html",
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read(2_000_000)
+            body = raw.decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}"}
+    except urllib.error.URLError as e:
+        return {"error": f"url error: {e.reason}"}
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+
+    results = []
+    for m in _DDG_RESULT_RE.finditer(body):
+        href = _ddg_unwrap(m.group(1))
+        title = _html_to_text(m.group(2) or "")
+        snippet_raw = m.group(3) or m.group(4) or ""
+        snippet = _html_to_text(snippet_raw)
+        if not href or not title:
+            continue
+        results.append({
+            "title": unescape(title)[:200],
+            "url": href,
+            "snippet": unescape(snippet)[:400],
+        })
+        if len(results) >= limit:
+            break
+
+    if not results:
+        return {"query": q, "results": [],
+                "note": "no results parsed (DuckDuckGo HTML may have changed or blocked the request)"}
+    return {"query": q, "count": len(results), "results": results}
+
+
 _SLEEP_MAX_S = 5.0
 
 
@@ -855,6 +934,7 @@ REGISTRY = {
     "glob_files":    glob_files,
     "grep":          grep,
     "web_fetch":     web_fetch,
+    "web_search":    web_search,
     "sleep_tool":    sleep_tool,
     "todo_write":    todo_write,
     "generate_image": generate_image,
@@ -872,6 +952,7 @@ TOOL_DOCS = {
     "glob_files":   'glob_files(pattern:str,root?:str) — match paths by glob (e.g. "**/*.py"); sorted by mtime',
     "grep":         'grep(pattern:str,root?:str,glob?:str,mode?:"files_with_matches"|"content"|"count",multiline?:bool,case_insensitive?:bool) — regex content search',
     "web_fetch":    'web_fetch(url:str)                — GET https URL, return text (HTML→text). No JS.',
+    "web_search":   'web_search(query:str,limit?:int=5) — search the web via DuckDuckGo. Returns [{title,url,snippet}]. Follow up with web_fetch(url) to read a result.',
     "sleep_tool":   'sleep_tool(seconds:float)         — pause up to 5s',
     "todo_write":   'todo_write(items:list[{content,status}]) — persist a todo list (status: pending|in_progress|completed)',
     "generate_image": 'generate_image(prompt:str,negative?:str,width?:int=512,height?:int=512,steps?:int=20,seed?:int,init_image?:str,strength?:float=0.75) — render an image. With init_image (path or URL) does image-text-to-image. Uses configured local/ComfyUI/sd.cpp backend.',
@@ -894,7 +975,8 @@ DEFAULT_TOOL_PERMS = {
     "write_file":   "deny",
     "glob_files":   "ask",
     "grep":         "ask",
-    "web_fetch":    "ask",
+    "web_fetch":    "allow",
+    "web_search":   "allow",
     "sleep_tool":   "allow",
     "todo_write":   "ask",
     "generate_image":"allow",
