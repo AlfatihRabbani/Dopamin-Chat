@@ -339,6 +339,11 @@ MIT. Models you supply remain under their own licenses.
 
 ## Changelog
 
+### v0.2.5 — 2026-05-24
+
+**Fixed**
+- `ggml-cuda.cu:97: CUDA error` aborts mid-generation on Gemma 3 / Gemma 4 GGUFs. flash_attn is no longer forced on — Gemma 3+ uses sliding-window attention with asymmetric V-cache sizes that the 0.3.22 cu124 wheel mishandles. Default is now `flash_attn=False`; opt back in with `DOPAMINE_FLASH_ATTN=1` once you've confirmed your model/wheel combo is stable. `offload_kqv` is likewise env-controlled via `DOPAMINE_OFFLOAD_KQV` (default on).
+
 ### v0.2.4 — 2026-05-24
 
 **Fixed**

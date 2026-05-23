@@ -447,19 +447,23 @@ class GGUFBackend(Backend):
                               f"falling back to text-only[/]")
                 chat_handler = None
 
-        # flash_attn=True silences the "V embeddings have different sizes
-        # across layers and FA is not enabled - padding V cache to 2048"
-        # warning and lets per-layer V-cache run at native size on GPU.
+        # flash_attn was previously forced True. Gemma 3 / Gemma 4 use sliding-
+        # window attention + asymmetric V-cache sizes that have crashed mid-gen
+        # with the 0.3.22 cu124 wheel ("ggml-cuda.cu:97: CUDA error"). Default
+        # is now OFF — opt back in with DOPAMINE_FLASH_ATTN=1 if your model +
+        # llama-cpp-python build are known-good together.
         # use_mmap=False when running fully on GPU — keeps weights out of the
         # process working set (5GB+ "RAM" in Task Manager is just mmapped file
         # cache, but Windows reports it as private bytes).
         gpu_full = (n_gpu == -1)
+        flash_attn = os.environ.get("DOPAMINE_FLASH_ATTN", "0").lower() in ("1", "true", "yes")
+        offload_kqv = os.environ.get("DOPAMINE_OFFLOAD_KQV", "1").lower() in ("1", "true", "yes")
         common_kwargs = dict(
             n_gpu_layers=n_gpu,
             n_ctx=int(os.environ.get("DOPAMINE_N_CTX", "16384")),
             n_batch=int(os.environ.get("DOPAMINE_N_BATCH", "512")),
-            flash_attn=True,
-            offload_kqv=True,   # KV cache on GPU — avoids per-token PCIe round trip
+            flash_attn=flash_attn,
+            offload_kqv=offload_kqv,   # KV cache on GPU — avoids per-token PCIe round trip
             use_mmap=(not gpu_full),
             use_mlock=False,
             verbose=False,
