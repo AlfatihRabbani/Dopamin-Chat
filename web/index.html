@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dopamine Chat</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body data-theme="dark">
+
+<div id="app">
+
+  <!-- Discord-style server list (left rail) -->
+  <aside id="rail">
+    <div class="rail-item rail-logo" title="Dopamine Chat">D</div>
+    <div class="rail-sep"></div>
+    <div id="rail-personalities"></div>
+    <div class="rail-grow"></div>
+    <div class="rail-item rail-settings" id="open-settings" title="Settings">⚙</div>
+  </aside>
+
+  <!-- Channel list -->
+  <aside id="channels">
+    <header class="ch-head">
+      <div class="ch-title" id="active-persona-name">No character</div>
+      <div class="ch-sub" id="active-persona-desc"></div>
+    </header>
+    <section class="ch-section">
+      <div class="ch-section-head">
+        <span># channels</span>
+        <button id="new-chat" class="iconbtn-sm" title="New chat">+</button>
+      </div>
+      <div id="history" class="ch-list">Loading…</div>
+    </section>
+    <footer id="user-strip">
+      <img id="user-pfp-img" class="pfp-sm" src="" alt="" hidden />
+      <div class="user-text">
+        <div class="user-name" id="user-strip-name">You</div>
+        <div class="user-status" id="user-strip-status">no model loaded</div>
+      </div>
+      <button class="iconbtn-sm" id="open-settings-2" title="Settings">⚙</button>
+    </footer>
+  </aside>
+
+  <!-- Chat area -->
+  <main id="chat">
+    <header id="chat-header">
+      <img id="bot-pfp" class="pfp" src="" alt="" hidden />
+      <div class="header-text">
+        <div id="persona-name">Pick a character to begin</div>
+        <div id="mood-wrap" hidden>
+          <div class="mood-bar"><div id="mood-fill"></div></div>
+          <div id="mood-label">--</div>
+          <button id="emo-toggle" class="link" title="Show emotion mood panel">mood ▾</button>
+        </div>
+        <div id="emo-panel" hidden></div>
+      </div>
+      <button id="toggle-thinking" class="iconbtn" title="Hide thinking blocks">💭</button>
+      <button id="reset" class="iconbtn warn" title="Reset chat">↺</button>
+    </header>
+
+    <div id="messages"></div>
+
+    <footer id="composer">
+      <div id="img-status" hidden>📎 <span id="img-name"></span> <button id="img-clear" class="link">clear</button></div>
+      <div class="row">
+        <textarea id="input" rows="2" placeholder="Type a message. Shift+Enter for newline. Enter to send."></textarea>
+        <input type="file" id="img-input" accept="image/*" hidden />
+        <button id="img-btn" title="Attach image">📎</button>
+        <button id="send-btn">Send</button>
+      </div>
+      <div id="diag" class="diag">
+        <span id="diag-load">model: —</span>
+        <span class="sep">•</span>
+        <span id="diag-turn">turn: —</span>
+      </div>
+    </footer>
+  </main>
+
+</div>
+
+<!-- Approval modal -->
+<div id="approval-modal" hidden>
+  <div class="approval-card">
+    <div class="approval-head">⚠ Tool approval requested</div>
+    <div class="approval-name" id="approval-name">tool_name</div>
+    <div class="approval-args" id="approval-args"></div>
+    <div class="approval-reason" id="approval-reason"></div>
+    <div class="approval-countdown">Decide within <span id="approval-countdown">120</span>s — model is paused.</div>
+    <div class="approval-buttons">
+      <button id="approval-deny" class="warn">Deny</button>
+      <button id="approval-allow">Allow</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" hidden>
+  <div class="settings-card">
+    <header class="settings-head">
+      <div>Settings</div>
+      <button id="settings-close" class="iconbtn">✕</button>
+    </header>
+    <div class="settings-body">
+      <nav class="settings-tabs">
+        <button class="settings-tab active" data-tab="general">General</button>
+        <button class="settings-tab" data-tab="models">Models</button>
+        <button class="settings-tab" data-tab="personality">Character</button>
+        <button class="settings-tab" data-tab="gpu">GPU</button>
+        <button class="settings-tab" data-tab="themes">Themes</button>
+        <button class="settings-tab" data-tab="user">User profile</button>
+        <button class="settings-tab" data-tab="tts">TTS</button>
+        <button class="settings-tab" data-tab="voice">Voice conversion</button>
+        <button class="settings-tab" data-tab="imggen">Image gen</button>
+      </nav>
+      <section class="settings-pane">
+
+        <div class="pane" data-pane="general">
+          <h4>General</h4>
+          <label class="row-toggle"><input type="checkbox" id="auto-rename" /> Auto-rename chats with a short summary</label>
+          <p class="hint">Renames each chat after the first AI reply using a tiny LLM call.</p>
+        </div>
+
+        <div class="pane" data-pane="models" hidden>
+          <h4>Model</h4>
+          <div class="form-row">
+            <label>Model file</label>
+            <select id="model-select"></select>
+            <button id="model-refresh" class="iconbtn-sm" title="Rescan models/ folder">⟳</button>
+          </div>
+          <button id="model-load" class="primary">Load model</button>
+          <div class="hint" id="model-status">no model loaded</div>
+        </div>
+
+        <div class="pane" data-pane="personality" hidden>
+          <h4>Character</h4>
+          <div id="personality-grid" class="persona-grid"></div>
+        </div>
+
+        <div class="pane" data-pane="gpu" hidden>
+          <h4>Cycles Render Devices</h4>
+          <p class="hint">Pick a compute backend, then tick which devices to use. Reload the model after applying.</p>
+          <div id="gpu-backend-tabs" class="gpu-bt-row"></div>
+          <div id="gpu-device-list" class="gpu-devlist"></div>
+          <button id="gpu-apply" class="primary" style="margin-top:12px">Apply</button>
+          <button id="gpu-reinstall-torch" style="margin-top:12px">Reinstall torch (cu124)</button>
+          <div class="hint" id="gpu-status"></div>
+        </div>
+
+        <div class="pane" data-pane="themes" hidden>
+          <h4>Theme</h4>
+          <div class="theme-grid">
+            <button class="theme-card" data-theme="light">Light</button>
+            <button class="theme-card" data-theme="dark">Dark</button>
+            <button class="theme-card" data-theme="ash">Ash</button>
+            <button class="theme-card" data-theme="onyx">Onyx</button>
+          </div>
+        </div>
+
+        <div class="pane" data-pane="user" hidden>
+          <h4>Your profile</h4>
+          <div class="form-row">
+            <label>Display name</label>
+            <input type="text" id="user-name-input" placeholder="e.g. wolgm" />
+          </div>
+          <div class="form-row">
+            <label>Description (told to AI)</label>
+            <textarea id="user-desc-input" rows="3" placeholder="e.g. a software dev who likes terse answers"></textarea>
+          </div>
+          <div class="form-row">
+            <label>Profile picture</label>
+            <input type="file" id="user-pfp-input" accept="image/*" />
+            <img id="user-pfp-preview" class="pfp" src="" alt="" hidden />
+          </div>
+          <button id="user-save" class="primary">Save profile</button>
+        </div>
+
+        <div class="pane" data-pane="tts" hidden>
+          <h4>Text-to-speech</h4>
+          <label class="row-toggle"><input type="checkbox" id="tts-enabled" /> Speak AI replies aloud</label>
+          <div class="form-row">
+            <label>Engine</label>
+            <select id="tts-engine"><option value="piper">piper</option></select>
+          </div>
+          <div class="form-row">
+            <label>Voice</label>
+            <select id="tts-voice"></select>
+            <button id="tts-refresh" class="iconbtn-sm" title="Rescan voices/piper/">⟳</button>
+          </div>
+          <div class="hint" id="tts-status">checking…</div>
+          <div class="form-row">
+            <label>Test text</label>
+            <input id="tts-test-text" type="text" value="Hello, this is a voice test." />
+          </div>
+          <button id="tts-test" class="primary">Speak test</button>
+          <audio id="tts-audio" controls hidden></audio>
+        </div>
+
+        <div class="pane" data-pane="voice" hidden>
+          <h4>Voice conversion (RVC)</h4>
+          <label class="row-toggle"><input type="checkbox" id="rvc-enabled" /> Pipe TTS through RVC voice model</label>
+          <div class="form-row">
+            <label>RVC .pth</label>
+            <select id="rvc-pth"></select>
+            <button id="rvc-refresh" class="iconbtn-sm" title="Rescan voices/rvc/ + applio/">⟳</button>
+          </div>
+          <div class="form-row">
+            <label>RVC .index</label>
+            <input id="rvc-index" type="text" placeholder="(auto-paired from same folder)" />
+          </div>
+          <div class="form-row">
+            <label>Pitch (semitones)</label>
+            <input id="rvc-pitch" type="number" value="0" step="1" />
+          </div>
+          <div class="form-row">
+            <label>Index rate (0–1)</label>
+            <input id="rvc-index-rate" type="number" value="0.75" step="0.05" min="0" max="1" />
+          </div>
+          <div class="form-row">
+            <label>Pitch extractor</label>
+            <select id="rvc-extractor">
+              <option value="rmvpe">rmvpe</option>
+              <option value="crepe">crepe</option>
+              <option value="pm">pm</option>
+            </select>
+          </div>
+          <div class="hint" id="rvc-status">checking…</div>
+
+          <h4 style="margin-top:14px">Convert an audio file to character voice</h4>
+          <div class="form-row">
+            <input type="file" id="rvc-audio-in" accept="audio/*" />
+            <button id="rvc-convert" class="primary">Convert</button>
+          </div>
+          <div id="rvc-progress" class="rvc-progress" hidden>
+            <div class="rvc-progress-bar"><div class="rvc-progress-fill" id="rvc-progress-fill"></div></div>
+            <div class="rvc-progress-label" id="rvc-progress-label">0%</div>
+          </div>
+          <div id="rvc-output" class="rvc-output" hidden>
+            <audio id="rvc-audio-out" controls></audio>
+            <a id="rvc-audio-download" class="rvc-download" download="rvc_output.wav">Download .wav</a>
+          </div>
+        </div>
+
+        <div class="pane" data-pane="imggen" hidden>
+          <h4>Image generation</h4>
+          <p class="hint">LLMs (Qwen/Gemma/Llama) produce text only. Use a real diffusion model here. Supports image-text-to-image when you upload an init image.</p>
+
+          <div class="form-row">
+            <label>Mode</label>
+            <div class="gpu-bt-row" id="imggen-mode-tabs" style="max-width:320px">
+              <button class="gpu-bt-tab" data-mode="local">Local model</button>
+              <button class="gpu-bt-tab" data-mode="server">External server</button>
+            </div>
+            <span></span>
+          </div>
+
+          <!-- Local mode -->
+          <div id="imggen-local-pane">
+            <div class="form-row">
+              <label>Type</label>
+              <div class="gpu-bt-row imggen-kind-tabs" style="max-width:560px">
+                <button class="gpu-bt-tab active" data-kind="diffusers">Diffusers</button>
+                <button class="gpu-bt-tab" data-kind="safetensors">SafeTensors</button>
+                <button class="gpu-bt-tab" data-kind="transformers">Transformers</button>
+                <button class="gpu-bt-tab" data-kind="gguf">GGUF</button>
+                <button class="gpu-bt-tab" data-kind="lora">LoRA</button>
+              </div>
+              <span></span>
+            </div>
+
+            <!-- Local: model sub-panes (non-LoRA share one model select) -->
+            <div class="imggen-kind-pane" data-pane-kind="diffusers safetensors transformers gguf">
+              <div class="form-row">
+                <label>Model</label>
+                <select id="imggen-model"></select>
+                <button id="imggen-refresh" class="iconbtn-sm" title="Rescan ImageGen_Models/">⟳</button>
+              </div>
+              <p class="hint" data-hint-kind="diffusers">HF folder with <code>model_index.json</code> in <code>ImageGen_Models/</code>. e.g. SD/SDXL/Flux/HiDream-I1.</p>
+              <p class="hint" data-hint-kind="safetensors">Single-file <code>.safetensors</code> checkpoint in <code>ImageGen_Models/</code>. Diffusers single-file loader.</p>
+              <p class="hint" data-hint-kind="transformers">Transformers-style multimodal LLM dir (has <code>config.json</code>, no <code>model_index.json</code>). Needs repo <code>*.py</code> files (trust_remote_code). e.g. HiDream-O1-Image.</p>
+              <p class="hint" data-hint-kind="gguf"><code>.gguf</code> image weights routed to stable-diffusion.cpp CLI. Text LLM GGUFs do NOT belong here.</p>
+              <div class="form-row" data-dl-kind="diffusers transformers">
+                <label>HF download</label>
+                <input id="imggen-dl-repo" type="text" placeholder="HiDream-ai/HiDream-O1-Image" />
+                <button id="imggen-dl-btn">Download</button>
+              </div>
+              <div class="form-row" data-dl-kind="safetensors gguf">
+                <label>Single file</label>
+                <input id="imggen-dl-file" type="text" placeholder="e.g. v1-5-pruned-emaonly.safetensors" />
+                <span></span>
+              </div>
+            </div>
+
+            <!-- Local: LoRA sub-pane -->
+            <div class="imggen-kind-pane" data-pane-kind="lora" hidden>
+              <p class="hint">LoRAs layer on top of a base model. Pick the base under <b>Diffusers / SafeTensors / Transformers / GGUF</b> first, then tick LoRAs here and press <b>Load</b>.</p>
+              <p class="hint">Drop <code>.safetensors</code> LoRA files into <code>dopamine_chat/ImageGen_LoRAs/</code>. Tick to activate; per-LoRA scale 0–2.</p>
+              <div class="hint" id="imggen-lora-basehint" style="margin-top:6px"></div>
+              <div id="imggen-loras"></div>
+              <button id="imggen-loras-refresh" class="iconbtn-sm" title="Rescan ImageGen_LoRAs/">⟳ rescan</button>
+            </div>
+          </div>
+
+          <!-- Server mode -->
+          <div id="imggen-server-pane" hidden>
+            <div class="form-row">
+              <label>Type</label>
+              <div class="gpu-bt-row imggen-kind-tabs" style="max-width:560px">
+                <button class="gpu-bt-tab active" data-kind="diffusers">Diffusers</button>
+                <button class="gpu-bt-tab" data-kind="safetensors">SafeTensors</button>
+                <button class="gpu-bt-tab" data-kind="transformers">Transformers</button>
+                <button class="gpu-bt-tab" data-kind="gguf">GGUF</button>
+                <button class="gpu-bt-tab" data-kind="lora">LoRA</button>
+              </div>
+              <span></span>
+            </div>
+
+            <div class="imggen-kind-pane" data-pane-kind="diffusers safetensors transformers gguf">
+              <div class="form-row">
+                <label>Backend</label>
+                <select id="imggen-backend">
+                  <option value="comfyui">ComfyUI HTTP API</option>
+                  <option value="sd_cpp">stable-diffusion.cpp CLI</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>ComfyUI URL</label>
+                <input id="imggen-comfy-url" type="text" value="http://127.0.0.1:8188" />
+              </div>
+              <div class="form-row">
+                <label>Checkpoint</label>
+                <input id="imggen-comfy-model" type="text" placeholder="e.g. v1-5-pruned-emaonly.safetensors" />
+              </div>
+              <p class="hint" data-hint-kind="transformers">Transformers MLLMs (HiDream-O1) need ComfyUI custom nodes — install the matching node pack for the repo.</p>
+              <p class="hint" data-hint-kind="gguf">sd.cpp backend reads GGUF directly. Point checkpoint at the <code>.gguf</code> path.</p>
+            </div>
+
+            <div class="imggen-kind-pane" data-pane-kind="lora" hidden>
+              <p class="hint">LoRAs apply locally to diffusers pipelines. For ComfyUI/sd.cpp, attach LoRAs server-side via that tool's UI. Listed here for reference.</p>
+              <div id="imggen-loras-srv-mirror" class="hint">LoRA list is in the Local pane → LoRA sub-tab.</div>
+            </div>
+          </div>
+
+          <h4 style="margin-top:14px">Defaults</h4>
+          <div class="form-row">
+            <label>Negative prompt</label>
+            <input id="imggen-negative" type="text" placeholder="(optional default)" />
+          </div>
+          <div class="form-row">
+            <label>Width × Height</label>
+            <input id="imggen-width" type="number" value="512" />
+            <input id="imggen-height" type="number" value="512" />
+          </div>
+          <div class="form-row">
+            <label>Steps</label>
+            <input id="imggen-steps" type="number" value="20" min="1" />
+          </div>
+          <div class="form-row">
+            <label>img2img strength</label>
+            <input id="imggen-strength" type="number" value="0.75" min="0" max="1" step="0.05" />
+          </div>
+          <div class="form-row">
+            <label>VRAM offload</label>
+            <select id="imggen-offload">
+              <option value="auto">auto (VRAM-aware)</option>
+              <option value="off">off — full GPU residency</option>
+              <option value="model">enable_model_cpu_offload</option>
+              <option value="sequential">enable_sequential_cpu_offload (tiny VRAM)</option>
+            </select>
+          </div>
+          <button id="imggen-save" class="primary">Load</button>
+          <div class="hint" id="imggen-status">checking…</div>
+
+          <h4 style="margin-top:14px">Quick test</h4>
+          <div class="form-row">
+            <label>Prompt</label>
+            <input id="imggen-test-prompt" type="text" value="a small green hill at sunset" />
+          </div>
+          <div class="form-row">
+            <label>Init image (img2img)</label>
+            <input id="imggen-test-init" type="file" accept="image/*" />
+          </div>
+          <button id="imggen-test-btn" class="primary">Generate</button>
+          <img id="imggen-test-out" style="max-width:100%;margin-top:10px;border-radius:6px" hidden />
+        </div>
+
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Drag-and-drop overlay. Appears when files are dragged over the page. -->
+<div id="drop-overlay" hidden>
+  <div class="drop-card">
+    <img id="drop-logo" src="/api/think-logo.gif" alt="" />
+    <div class="drop-title">Drop to upload</div>
+    <div class="drop-sub">image (jpg/png/gif/webp) → vision  ·  docx · pdf · xlsx · txt → context</div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

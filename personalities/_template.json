@@ -1,0 +1,53 @@
+{
+  "id": "your_personality_id",
+  "name": "Display Name Here",
+  "description": "One-line summary shown in selection menu.",
+
+  "starting_dopamine": 50,
+  "decay_per_turn": -5,
+  "praise_bonus": 35,
+  "max_dopamine": 100,
+  "min_dopamine": 0,
+
+  "self_terminate_threshold": -999,
+
+  "tools_enabled": false,
+  "tools_allowlist": ["read_file", "list_dir", "search_files"],
+  "tools_auto_approve": false,
+
+  "tool_permissions": {
+    "read_file":    "allow",
+    "list_dir":     "allow",
+    "search_files": "allow",
+    "run_command":  "ask",
+    "write_note":   "ask",
+    "_default":     "deny"
+  },
+
+  "shell_permissions": {
+    "ls":   "allow",
+    "pwd":  "allow",
+    "cat":  "allow",
+    "echo": "allow",
+    "sudo": "deny",
+    "rm":   "deny",
+    "_default": "deny"
+  },
+
+  "denial_dopamine_penalty": -5,
+
+  "positive_keywords": [
+    "thank you",
+    "good job",
+    "i love you"
+  ],
+
+  "system_prompt_low":         "Behavior when dopamine < 35.",
+  "system_prompt_mid":         "Behavior when dopamine 35-70.",
+  "system_prompt_high":        "Behavior when dopamine > 70.",
+  "system_prompt_termination": "Final message when dopamine <= self_terminate_threshold. Bot leaves session after this.",
+
+  "remember_past_chats": false,
+  "share_history_with_others": false,
+  "voice_style": "describe tone, register, speech quirks"
+}
