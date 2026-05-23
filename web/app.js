@@ -144,14 +144,16 @@ function selectPersonality(id, opts) {
   // character*, generation + saving must move to that character's session.
   // Otherwise the UI shows B's name/pfp while the server keeps generating as
   // A and writing to A's history file (the "wrong-character-saved" bug).
+  // No confirm dialog — picking a different card is the explicit intent.
   if (S.sessionActive && S.selectedPersonality && id !== S.selectedPersonality
       && !opts.fromLoad) {
-    const target = (S.personalities.find(x => x.id === id) || {}).name || id;
-    if (!confirm(`Start a new chat with ${target}? Your current chat will be saved.`)) {
-      return;
-    }
     S.selectedPersonality = id;
     refreshRailActive();
+    const p = S.personalities.find(x => x.id === id);
+    if (p) {
+      $("active-persona-name").textContent = p.name;
+      $("active-persona-desc").textContent = p.description || "";
+    }
     newChat();
     return;
   }
@@ -1698,28 +1700,20 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Restore current model + chat session after page refresh.
+// Restore current model on page refresh. Chat session is intentionally NOT
+// auto-restored — the user picks one from the history sidebar so the wrong
+// session doesn't pop up when they switch characters.
 async function restoreOnRefresh() {
-  // Model state
   try {
     const st = await api("/api/status");
     if (st.model_loaded) {
       S.modelLoaded = true;
-      S.selectedModel = st.backend || S.selectedModel;
+      // Prefer the discovered model name (matches the dropdown values);
+      // fall back to backend label if name wasn't reported by the server.
+      S.selectedModel = st.model_name || st.backend || S.selectedModel;
       const ml = $("model-select"); if (ml && S.selectedModel) ml.value = S.selectedModel;
     }
   } catch (e) { /* server may not be ready */ }
-  // Active session
-  try {
-    const s = await api("/api/session");
-    if (s && s.active && S.modelLoaded) {
-      renderSession(s);
-      S.sessionActive = true;
-      S.sessionId = s.session_id;
-      if (s.personality && s.personality.id) selectPersonality(s.personality.id, { fromLoad: true });
-      toast(`Restored ${s.personality?.name || "chat"}`);
-    }
-  } catch (e) { /* no active session */ }
 }
 
 // Boot

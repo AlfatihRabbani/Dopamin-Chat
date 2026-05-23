@@ -339,6 +339,13 @@ MIT. Models you supply remain under their own licenses.
 
 ## Changelog
 
+### v0.2.4 — 2026-05-24
+
+**Fixed**
+- Persona-card click was silently doing nothing when the browser had suppressed `confirm()` dialogs. Switching to a different character now starts a new chat immediately without any confirmation modal — selecting a different card is treated as explicit intent.
+- After page refresh the model dropdown looked empty (server still had the model loaded). `/api/status` now returns `model_name` alongside the backend label, and the frontend uses it to repopulate the dropdown so the loaded model is visible again.
+- Page refresh no longer auto-restores the previous chat session. The user picks a chat from the history sidebar instead, which avoids surprise sessions appearing under the wrong character after a model reload.
+
 ### v0.2.3 — 2026-05-24
 
 **Fixed**

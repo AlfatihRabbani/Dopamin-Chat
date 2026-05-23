@@ -103,6 +103,7 @@ MAX_CONCURRENT = 4
 class AppState:
     def __init__(self):
         self.backend = None              # _mb.Backend
+        self.loaded_model_name: str = "" # discovery name of the currently-loaded GGUF/HF model
         self.load_time_s: float = 0.0
         self.session = None              # Session (current single-tab)
         self.sessions: dict[str, "Session"] = {}  # multi-tab: id → Session
@@ -689,6 +690,7 @@ def get_session():
 def get_status():
     return jsonify({
         "model_loaded": S.backend is not None,
+        "model_name": S.loaded_model_name or None,
         "backend": S.backend.label if S.backend else None,
         "has_vision": (S.backend.has_vision if S.backend else False),
         "load_time_s": round(S.load_time_s, 2),
@@ -726,6 +728,7 @@ def load_model():
         S.backend = _mb.load_backend(entry, Console(file=sys.stderr))
     except SystemExit:
         return jsonify({"error": "backend load failed (see terminal)"}), 500
+    S.loaded_model_name = name
     S.load_time_s = time.time() - t0
     log(f"Model loaded in {S.load_time_s:.2f}s • backend={S.backend.label} • vision={S.backend.has_vision}")
     return jsonify({
