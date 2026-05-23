@@ -261,14 +261,24 @@ def get_user_pfp():
 
 # --- Voice -----------------------------------------------------------------
 
-@app.get("/api/generated/<name>")
-def serve_generated(name: str):
-    # serve PNGs from generated_images/
-    safe = "".join(c for c in name if c.isalnum() or c in "._-")
-    p = _img.IMG_OUT / safe
+@app.get("/api/generated/<path:subpath>")
+def serve_generated(subpath: str):
+    # Serve PNGs from generated_images/ (root or per-session subfolder).
+    # Sanitize each path segment to keep the response inside IMG_OUT.
+    parts = []
+    for seg in subpath.replace("\\", "/").split("/"):
+        clean = "".join(c for c in seg if c.isalnum() or c in "._-")
+        if not clean or clean in (".", ".."):
+            return jsonify({"error": "bad path"}), 400
+        parts.append(clean)
+    p = _img.IMG_OUT.joinpath(*parts)
+    try:
+        p.resolve().relative_to(_img.IMG_OUT.resolve())
+    except Exception:
+        return jsonify({"error": "bad path"}), 400
     if not p.exists():
         return jsonify({"error": "not found"}), 404
-    return send_from_directory(_img.IMG_OUT, safe)
+    return send_from_directory(_img.IMG_OUT, "/".join(parts))
 
 
 @app.post("/api/imggen/download")
@@ -1304,12 +1314,13 @@ def chat_stream():
                                       "denied_reason": "user clicked Deny"}
 
                     # If tool returned an image path under generated_images/,
-                    # expose a /api/generated/<name> URL for inline UI display.
+                    # expose a /api/generated/<...> URL for inline UI display.
+                    # Handles both root-level files and per-session subfolders.
                     if isinstance(result, dict) and result.get("path"):
                         try:
-                            ppath = Path(result["path"])
-                            if ppath.parent == _img.IMG_OUT:
-                                result["url"] = f"/api/generated/{ppath.name}"
+                            ppath = Path(result["path"]).resolve()
+                            rel = ppath.relative_to(_img.IMG_OUT.resolve())
+                            result["url"] = "/api/generated/" + rel.as_posix()
                         except Exception:
                             pass
 

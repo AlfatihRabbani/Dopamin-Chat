@@ -339,6 +339,13 @@ MIT. Models you supply remain under their own licenses.
 
 ## Changelog
 
+### v0.2.2 — 2026-05-24
+
+**Fixed**
+- Generated images not rendering inline — only the file path was shown as text. Tool result now attaches a `url` field for any image saved anywhere under `generated_images/` (root or per-session subfolders), and the static route accepts subpaths so per-chat subdirectories serve correctly.
+- ComfyUI `/prompt` POST timeout bumped from 10s → 60s (env `DOPAMINE_COMFY_SUBMIT_TIMEOUT`). Cold-loading SDXL / Qwen-Edit / LTX models can block ComfyUI's synchronous validation for 30+ seconds, which used to surface as `comfyui submit failed: timed out` in the chat.
+- ComfyUI history poll timeout 5s → 15s, image fetch 15s → 30s, wall clock 3 min → 10 min (env `DOPAMINE_COMFY_WALL_TIMEOUT`).
+
 ### v0.2.1 — 2026-05-23
 
 **Fixed**
