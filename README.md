@@ -339,6 +339,11 @@ MIT. Models you supply remain under their own licenses.
 
 ## Changelog
 
+### v0.2.6 — 2026-05-24
+
+**Fixed**
+- Personalities calling tools at random — e.g. `list_dir({"path":"."})` after a plain `hello`. The tool guide previously said "PERMITTED tools (you may use these freely)" and included working inline examples like `<tool>list_dir</tool><args>{"path": "."}</args>`, which the model was pattern-matching against and parroting. Rewrote the guide with an explicit "WHEN TO CALL A TOOL" section ("Greetings, small talk, roleplay, emotional reactions, and general conversation NEVER require a tool"), replaced the parrot-bait examples with non-callable placeholder templates (`TOOL_NAME`, `{"key":"value"}`), and added a closing reminder that unnecessary calls count as policy violations.
+
 ### v0.2.5 — 2026-05-24
 
 **Fixed**

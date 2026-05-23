@@ -1040,12 +1040,20 @@ def tool_guide(personality) -> str:
     lines = [
         os_hint,
         "",
-        "TOOL-CALL FORMAT — strict, follow exactly:",
+        "WHEN TO CALL A TOOL:",
+        "  - Only when the user explicitly asks you to read, write, search, run,",
+        "    generate an image, or fetch something from the web.",
+        "  - Greetings, small talk, roleplay, emotional reactions, and general",
+        "    conversation NEVER require a tool. Just reply in character.",
+        "  - Do not call a tool out of curiosity. If the user did not request it,",
+        "    do not run it.",
+        "",
+        "TOOL-CALL FORMAT — strict, follow exactly WHEN you call a tool:",
         "  <tool>NAME</tool><args>{...VALID JSON OBJECT...}</args>",
         "  - <args> is REQUIRED. Always include it, even with {} for no arguments.",
         "  - JSON must be valid: use double quotes for keys/values.",
-        "  - Example: <tool>list_dir</tool><args>{\"path\": \".\"}</args>",
-        "  - Example: <tool>run_command</tool><args>{\"cmd\": \"ls /home\"}</args>",
+        "  - These are syntax templates, NOT instructions to invoke them:",
+        "      <tool>TOOL_NAME</tool><args>{\"key\":\"value\"}</args>",
         "",
         "THINKING FORMAT — strict:",
         "  <think>your inner monologue here</think>",
@@ -1054,7 +1062,7 @@ def tool_guide(personality) -> str:
         "",
         "Tool output appears in your context on the next turn.",
         "",
-        "PERMITTED tools (you may use these freely):",
+        "AVAILABLE tools (use ONLY when the user asks for the action):",
     ]
     for name in allowed_tools:
         if name in TOOL_DOCS:
@@ -1087,14 +1095,15 @@ def tool_guide(personality) -> str:
     if "generate_image" in allowed_tools or "generate_image" in ask_tools:
         lines.append("")
         lines.append("generate_image — Image generation:")
-        lines.append("  To produce a picture, call generate_image with a text 'prompt'.")
+        lines.append("  Only call this when the user EXPLICITLY asks for a picture or a")
+        lines.append("  visual ('draw...', 'show me...', 'generate an image of...').")
         lines.append("  Do NOT try shell commands like 'show', 'display', 'open', or 'feh' —")
         lines.append("  those are viewers, not generators. Only generate_image creates new images.")
-        lines.append('  Example: <tool>generate_image</tool><args>{"prompt":"a small green hill at sunset"}</args>')
 
     lines.append("")
     lines.append("Calls that violate the policy are auto-denied and lower the bot's dopamine.")
-    lines.append("Stay inside the permitted set.")
+    lines.append("Unnecessary tool calls also count as policy violations — stay in character")
+    lines.append("and only act when the user actually asked you to.")
     return "\n".join(lines)
 
 
