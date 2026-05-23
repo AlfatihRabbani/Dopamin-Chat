@@ -130,17 +130,31 @@ function refreshRailActive() {
   }
 }
 
-// Rail is for display only. Mid-session: no-op. No-session: select for new chat.
+// Rail click: same flow as the settings persona card. If a chat is in
+// progress and the user clicks a different character, selectPersonality()
+// will prompt to start a new chat under that character.
 function railClick(id) {
   if (S.sessionActive && id === S.selectedPersonality) return;          // already showing
-  if (S.sessionActive && id !== S.selectedPersonality) {
-    toast("Active chat in progress. Use Settings → Character or + to start a new one.");
-    return;
-  }
   selectPersonality(id);
 }
 
-function selectPersonality(id) {
+function selectPersonality(id, opts) {
+  opts = opts || {};
+  // If a chat is already active and the user is *switching to a different
+  // character*, generation + saving must move to that character's session.
+  // Otherwise the UI shows B's name/pfp while the server keeps generating as
+  // A and writing to A's history file (the "wrong-character-saved" bug).
+  if (S.sessionActive && S.selectedPersonality && id !== S.selectedPersonality
+      && !opts.fromLoad) {
+    const target = (S.personalities.find(x => x.id === id) || {}).name || id;
+    if (!confirm(`Start a new chat with ${target}? Your current chat will be saved.`)) {
+      return;
+    }
+    S.selectedPersonality = id;
+    refreshRailActive();
+    newChat();
+    return;
+  }
   S.selectedPersonality = id;
   refreshRailActive();
   for (const el of document.querySelectorAll("#personality-grid .persona-card")) {
@@ -659,7 +673,7 @@ async function loadSessionById(sid) {
   renderSession(s);
   S.sessionActive = true;
   S.sessionId = s.session_id;
-  selectPersonality(s.personality.id);
+  selectPersonality(s.personality.id, { fromLoad: true });
   toast(`Resumed ${s.personality.name}`);
 }
 
@@ -697,6 +711,11 @@ function renderSession(s) {
     const m = S.allMessages[i];
     const bubble = appendMessage(m.role, m.content || "");
     if (m.followup) bubble.parentElement.classList.add("followup");
+    // Replay any tool calls that were attached to this assistant message
+    // (generated images, run_command output, etc.) so they survive refresh.
+    if (Array.isArray(m.tool_calls)) {
+      for (const tc of m.tool_calls) renderToolCall(tc);
+    }
   }
   if (S.shownStart > 0) prependLoadMoreSentinel();
   scrollToBottom();
@@ -729,9 +748,20 @@ function loadMoreHistory() {
     const tmp = document.createElement("div");
     document.body.appendChild(tmp);
     appendMessage(mm.role, mm.content || "");
-    const wrap = $("messages").lastElementChild;
-    if (sentinel) m.insertBefore(wrap, sentinel.nextSibling);
-    else m.insertBefore(wrap, m.firstChild);
+    if (Array.isArray(mm.tool_calls)) {
+      for (const tc of mm.tool_calls) renderToolCall(tc);
+    }
+    const inserted = [];
+    let n = $("messages").lastElementChild;
+    while (n && !inserted.includes(n)) {
+      inserted.unshift(n);
+      if (inserted.length > 1 + (mm.tool_calls?.length || 0)) break;
+      n = n.previousElementSibling;
+    }
+    for (const node of inserted) {
+      if (sentinel) m.insertBefore(node, sentinel.nextSibling);
+      else m.insertBefore(node, m.firstChild);
+    }
     tmp.remove();
   }
   if (S.shownStart > 0) prependLoadMoreSentinel();
@@ -1686,7 +1716,7 @@ async function restoreOnRefresh() {
       renderSession(s);
       S.sessionActive = true;
       S.sessionId = s.session_id;
-      if (s.personality && s.personality.id) selectPersonality(s.personality.id);
+      if (s.personality && s.personality.id) selectPersonality(s.personality.id, { fromLoad: true });
       toast(`Restored ${s.personality?.name || "chat"}`);
     }
   } catch (e) { /* no active session */ }

@@ -339,6 +339,13 @@ MIT. Models you supply remain under their own licenses.
 
 ## Changelog
 
+### v0.2.3 — 2026-05-24
+
+**Fixed**
+- Character switch during an active chat used to silently change the UI label and pfp while the server kept generating as — and saving to — the previous character. Clicking a different persona card (or rail item) now prompts to start a new chat under that character; loading a session from history sets the UI without prompting via an internal `fromLoad` flag.
+- Generated images and other tool results disappeared after a page refresh. Tool results are now attached to the assistant message as a structured `tool_calls` field on save; the renderer replays them via the same tool-card path the live SSE stream uses, so images, run-command output, and other tool bubbles survive refreshes and history reloads.
+- Removed the blocking "Active chat in progress" toast on the rail — selecting a different character there now follows the same confirm-and-switch flow as the settings grid.
+
 ### v0.2.2 — 2026-05-24
 
 **Fixed**

@@ -1251,12 +1251,13 @@ def chat_stream():
                 "timestamp": datetime.datetime.now().isoformat(),
                 "image": img_name or None,
             })
-            s.messages.append({
+            asst_msg = {
                 "role": "assistant",
                 "content": full,
                 "timestamp": datetime.datetime.now().isoformat(),
                 "dopamine": s.dopamine,
-            })
+            }
+            s.messages.append(asst_msg)
             s.save()
 
             # Auto-title after first assistant reply (fire-and-forget thread).
@@ -1368,6 +1369,11 @@ def chat_stream():
                     })
 
                 if tool_results:
+                    # Structured copy on the assistant message so the UI can
+                    # re-render the tool cards (including image bubbles) after
+                    # a page refresh — the raw [tool_results] system entry
+                    # below is for the LLM's context only.
+                    asst_msg["tool_calls"] = tool_results
                     s.messages.append({
                         "role": "system",
                         "content": f"[tool_results] {json.dumps(tool_results, ensure_ascii=False)[:2000]}",
